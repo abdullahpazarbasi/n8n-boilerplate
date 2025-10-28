@@ -11,4 +11,9 @@ fi
 
 cd "$(dirname "$0")/.."
 
-minikube -p "$PROFILE_NAME" start --driver=docker --addons=default-storageclass,storage-provisioner,ingress --wait=all --disk-size=20g
+minikube -p "$PROFILE_NAME" start \
+    --driver=docker \
+    --addons=default-storageclass,storage-provisioner,ingress \
+    --wait=all \
+    --disk-size=20g \
+    --extra-config=kube-proxy.nodeport-addresses=primary
