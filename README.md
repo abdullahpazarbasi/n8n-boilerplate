@@ -1,2 +1,5 @@
-# n8n-boilerplate
-n8n Boilerplate
+# n8n Boilerplate
+
+```sh
+make setup
+```
