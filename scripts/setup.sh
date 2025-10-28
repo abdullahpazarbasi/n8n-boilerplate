@@ -54,6 +54,30 @@ ensure_minikube() {
     fi
 }
 
+wait_for_ingress_webhook() {
+    local profile="$1"
+    local namespace="ingress-nginx"
+    local svc="ingress-nginx-controller-admission"
+    local timeout_seconds=180
+    local interval=5
+    local waited=0
+
+    if ! minikube -p "$profile" kubectl -- -n "$namespace" wait --for=condition=Available deployment/ingress-nginx-controller --timeout="${timeout_seconds}s" >/dev/null 2>&1; then
+        return 1
+    fi
+
+    while [ "$waited" -lt "$timeout_seconds" ]; do
+        if minikube -p "$profile" kubectl -- -n "$namespace" get endpoints "$svc" -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null | grep -qE '\S'; then
+            return 0
+        fi
+
+        sleep "$interval"
+        waited=$((waited + interval))
+    done
+
+    return 1
+}
+
 need openssl
 
 MINIKUBE_READY=0
@@ -226,7 +250,8 @@ spec:
       nodePort: 30080
 YAML
 
-    cat <<YAML | minikube -p "${PROFILE_NAME}" kubectl -- apply -f -
+	if wait_for_ingress_webhook "${PROFILE_NAME}"; then
+    	cat <<YAML | minikube -p "${PROFILE_NAME}" kubectl -- apply -f -
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -245,6 +270,7 @@ spec:
                 port:
                   number: 80
 YAML
+	fi
 
     echo "🏃  Pods are being prepared..."
     minikube -p "${PROFILE_NAME}" kubectl -- rollout status deploy/postgres --timeout=120s
