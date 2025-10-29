@@ -11,6 +11,8 @@ N8N_TIMEZONE="Europe/Istanbul"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BIN_DIR="${REPO_ROOT}/bin"
 MANIFEST_DIR="${REPO_ROOT}/out/manifests"
+K8S_BASE_DIR="${REPO_ROOT}/k8s/base"
+TLS_SECRET_NAME="n8n-tls"
 
 mkdir -p "$BIN_DIR"
 export PATH="$BIN_DIR:$PATH"
@@ -101,176 +103,30 @@ fi
 PG_PASS="$(openssl rand -base64 18 | tr -d '=+/[:space:]' | head -c 20)"
 N8N_ENCRYPTION_KEY="$(openssl rand -base64 36 | tr -d '=+/[:space:]' | head -c 32)"
 
+CERT_HOST="${N8N_HOST_DEFAULT}"
+bash scripts/create-certs.sh "${CERT_HOST}"
+
+TLS_CERT_PATH="${K8S_BASE_DIR}/certificates/${CERT_HOST}.crt.pem"
+TLS_KEY_PATH="${K8S_BASE_DIR}/certificates/${CERT_HOST}.key.pem"
+
 if [ "$MOCK_MODE" -eq 0 ]; then
     minikube -p "${PROFILE_NAME}" kubectl -- delete secret "n8n-secrets" >/dev/null 2>&1 || true
     minikube -p "${PROFILE_NAME}" kubectl -- create secret generic "n8n-secrets" \
       --from-literal=POSTGRES_PASSWORD="${PG_PASS}" \
       --from-literal=N8N_ENCRYPTION_KEY="${N8N_ENCRYPTION_KEY}"
+    minikube -p "${PROFILE_NAME}" kubectl -- delete secret "${TLS_SECRET_NAME}" >/dev/null 2>&1 || true
+    minikube -p "${PROFILE_NAME}" kubectl -- create secret tls "${TLS_SECRET_NAME}" \
+      --cert="${TLS_CERT_PATH}" \
+      --key="${TLS_KEY_PATH}"
 
-    minikube -p "${PROFILE_NAME}" kubectl -- delete configmap "n8n-config" >/dev/null 2>&1 || true
-    minikube -p "${PROFILE_NAME}" kubectl -- create configmap "n8n-config" \
-      --from-literal=N8N_HOST="${N8N_HOST_DEFAULT}" \
-      --from-literal=N8N_PORT="5678" \
-      --from-literal=N8N_PROTOCOL="http" \
-      --from-literal=GENERIC_TIMEZONE="${N8N_TIMEZONE}" \
-      --from-literal=DB_TYPE="postgresdb" \
-      --from-literal=DB_POSTGRESDB_HOST="postgres" \
-      --from-literal=DB_POSTGRESDB_PORT="5432" \
-      --from-literal=DB_POSTGRESDB_DATABASE="n8n" \
-      --from-literal=DB_POSTGRESDB_USER="n8n"
+    minikube -p "${PROFILE_NAME}" kubectl -- apply -k "${K8S_BASE_DIR}"
 
-    cat <<'YAML' | minikube -p "${PROFILE_NAME}" kubectl -- apply -f -
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: pg-data
-spec:
-  accessModes: ["ReadWriteOnce"]
-  resources:
-    requests:
-      storage: 8Gi
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: n8n-data
-spec:
-  accessModes: ["ReadWriteOnce"]
-  resources:
-    requests:
-      storage: 4Gi
-YAML
-
-    cat <<YAML | minikube -p "${PROFILE_NAME}" kubectl -- apply -f -
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: postgres
-spec:
-  replicas: 1
-  selector: { matchLabels: { app: postgres } }
-  template:
-    metadata: { labels: { app: postgres } }
-    spec:
-      containers:
-        - name: postgres
-          image: ${POSTGRES_IMAGE}
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: POSTGRES_DB
-              value: n8n
-            - name: POSTGRES_USER
-              value: n8n
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: n8n-secrets
-                  key: POSTGRES_PASSWORD
-          ports:
-            - containerPort: 5432
-          volumeMounts:
-            - name: pgdata
-              mountPath: /var/lib/postgresql/data
-          readinessProbe:
-            exec: { command: ["pg_isready","-U","n8n"] }
-            initialDelaySeconds: 10
-            periodSeconds: 5
-          livenessProbe:
-            tcpSocket: { port: 5432 }
-            initialDelaySeconds: 15
-            periodSeconds: 10
-      volumes:
-        - name: pgdata
-          persistentVolumeClaim: { claimName: pg-data }
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres
-spec:
-  type: ClusterIP
-  ports:
-    - name: psql
-      port: 5432
-      targetPort: 5432
-  selector: { app: postgres }
-YAML
-
-    cat <<YAML | minikube -p "${PROFILE_NAME}" kubectl -- apply -f -
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: n8n
-spec:
-  replicas: 1
-  selector: { matchLabels: { app: n8n } }
-  template:
-    metadata: { labels: { app: n8n } }
-    spec:
-      containers:
-        - name: n8n
-          image: ${N8N_IMAGE}
-          imagePullPolicy: IfNotPresent
-          envFrom:
-            - configMapRef: { name: n8n-config }
-          env:
-            - name: N8N_ENCRYPTION_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: n8n-secrets
-                  key: N8N_ENCRYPTION_KEY
-          ports:
-            - containerPort: 5678
-          volumeMounts:
-            - name: n8nvol
-              mountPath: /home/node/.n8n
-          readinessProbe:
-            httpGet: { path: /healthz, port: 5678 }
-            initialDelaySeconds: 15
-            periodSeconds: 5
-          livenessProbe:
-            httpGet: { path: /healthz, port: 5678 }
-            initialDelaySeconds: 30
-            periodSeconds: 10
-      volumes:
-        - name: n8nvol
-          persistentVolumeClaim: { claimName: n8n-data }
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: n8n
-spec:
-  selector: { app: n8n }
-  type: NodePort
-  ports:
-    - name: http
-      port: 80
-      targetPort: 5678
-      nodePort: 30080
-YAML
-
-	if wait_for_ingress_webhook "${PROFILE_NAME}"; then
-    	cat <<YAML | minikube -p "${PROFILE_NAME}" kubectl -- apply -f -
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: n8n
-spec:
-  ingressClassName: "nginx"
-  rules:
-    - host: ${N8N_HOST_DEFAULT}
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: n8n
-                port:
-                  number: 80
-YAML
-	fi
+    if wait_for_ingress_webhook "${PROFILE_NAME}"; then
+        minikube -p "${PROFILE_NAME}" kubectl -- apply -f "${K8S_BASE_DIR}/ingress/n8n-ingress.yaml"
+    else
+        echo "⚠️  Ingress controller webhook is not ready; skipping ingress deployment for now." >&2
+        echo "    Apply ${K8S_BASE_DIR}/ingress/n8n-ingress.yaml once ingress-nginx is ready." >&2
+    fi
 
     echo "🏃  Pods are being prepared..."
     minikube -p "${PROFILE_NAME}" kubectl -- rollout status deploy/postgres --timeout=120s
@@ -286,11 +142,21 @@ YAML
 else
     echo ""
     echo "🗂️  Generating Kubernetes manifests instead of applying them."
+    rm -rf "$MANIFEST_DIR"
     mkdir -p "$MANIFEST_DIR"
 
     b64() { printf '%s' "$1" | base64 | tr -d '\n'; }
+    file_b64() { base64 <"$1" | tr -d '\n'; }
 
-    cat >"$MANIFEST_DIR/n8n-secrets.yaml" <<YAML
+    while IFS= read -r -d '' file; do
+        rel_path="${file#${K8S_BASE_DIR}/}"
+        dest_path="${MANIFEST_DIR}/${rel_path}"
+        mkdir -p "$(dirname "$dest_path")"
+        cp "$file" "$dest_path"
+    done < <(find "$K8S_BASE_DIR" -type f -name '*.yaml' -print0)
+
+    mkdir -p "$MANIFEST_DIR/secrets"
+    cat >"$MANIFEST_DIR/secrets/n8n-secrets.yaml" <<YAML
 apiVersion: v1
 kind: Secret
 metadata:
@@ -301,178 +167,23 @@ data:
   N8N_ENCRYPTION_KEY: "$(b64 "$N8N_ENCRYPTION_KEY")"
 YAML
 
-    cat >"$MANIFEST_DIR/n8n-configmap.yaml" <<YAML
+    cat >"$MANIFEST_DIR/secrets/n8n-tls.yaml" <<YAML
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
-  name: n8n-config
+  name: ${TLS_SECRET_NAME}
+type: kubernetes.io/tls
 data:
-  N8N_HOST: "${N8N_HOST_DEFAULT}"
-  N8N_PORT: "5678"
-  N8N_PROTOCOL: "http"
-  GENERIC_TIMEZONE: "${N8N_TIMEZONE}"
-  DB_TYPE: "postgresdb"
-  DB_POSTGRESDB_HOST: "postgres"
-  DB_POSTGRESDB_PORT: "5432"
-  DB_POSTGRESDB_DATABASE: "n8n"
-  DB_POSTGRESDB_USER: "n8n"
-YAML
-
-    cat >"$MANIFEST_DIR/persistent-volume-claims.yaml" <<'YAML'
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: pg-data
-spec:
-  accessModes: ["ReadWriteOnce"]
-  resources:
-    requests:
-      storage: 8Gi
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: n8n-data
-spec:
-  accessModes: ["ReadWriteOnce"]
-  resources:
-    requests:
-      storage: 4Gi
-YAML
-
-    cat >"$MANIFEST_DIR/postgres.yaml" <<YAML
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: postgres
-spec:
-  replicas: 1
-  selector: { matchLabels: { app: postgres } }
-  template:
-    metadata: { labels: { app: postgres } }
-    spec:
-      containers:
-        - name: postgres
-          image: ${POSTGRES_IMAGE}
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: POSTGRES_DB
-              value: n8n
-            - name: POSTGRES_USER
-              value: n8n
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: n8n-secrets
-                  key: POSTGRES_PASSWORD
-          ports:
-            - containerPort: 5432
-          volumeMounts:
-            - name: pgdata
-              mountPath: /var/lib/postgresql/data
-          readinessProbe:
-            exec: { command: ["pg_isready","-U","n8n"] }
-            initialDelaySeconds: 10
-            periodSeconds: 5
-          livenessProbe:
-            tcpSocket: { port: 5432 }
-            initialDelaySeconds: 15
-            periodSeconds: 10
-      volumes:
-        - name: pgdata
-          persistentVolumeClaim: { claimName: pg-data }
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres
-spec:
-  type: ClusterIP
-  ports:
-    - name: psql
-      port: 5432
-      targetPort: 5432
-  selector: { app: postgres }
-YAML
-
-    cat >"$MANIFEST_DIR/n8n.yaml" <<YAML
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: n8n
-spec:
-  replicas: 1
-  selector: { matchLabels: { app: n8n } }
-  template:
-    metadata: { labels: { app: n8n } }
-    spec:
-      containers:
-        - name: n8n
-          image: ${N8N_IMAGE}
-          imagePullPolicy: IfNotPresent
-          envFrom:
-            - configMapRef: { name: n8n-config }
-          env:
-            - name: N8N_ENCRYPTION_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: n8n-secrets
-                  key: N8N_ENCRYPTION_KEY
-          ports:
-            - containerPort: 5678
-          volumeMounts:
-            - name: n8nvol
-              mountPath: /home/node/.n8n
-          readinessProbe:
-            httpGet: { path: /healthz, port: 5678 }
-            initialDelaySeconds: 15
-            periodSeconds: 5
-          livenessProbe:
-            httpGet: { path: /healthz, port: 5678 }
-            initialDelaySeconds: 30
-            periodSeconds: 10
-      volumes:
-        - name: n8nvol
-          persistentVolumeClaim: { claimName: n8n-data }
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: n8n
-spec:
-  selector: { app: n8n }
-  type: NodePort
-  ports:
-    - name: http
-      port: 80
-      targetPort: 5678
-      nodePort: 30080
-YAML
-
-    cat >"$MANIFEST_DIR/ingress.yaml" <<YAML
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: n8n
-spec:
-  ingressClassName: "nginx"
-  rules:
-    - host: ${N8N_HOST_DEFAULT}
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: n8n
-                port:
-                  number: 80
+  tls.crt: "$(file_b64 "$TLS_CERT_PATH")"
+  tls.key: "$(file_b64 "$TLS_KEY_PATH")"
 YAML
 
     echo ""
     echo "👍  Setup (manifests only) completed."
     echo "    Generated manifests are located in: ${MANIFEST_DIR}"
-    echo "    Apply them with: kubectl apply -f ${MANIFEST_DIR}"
+    echo "    Apply secrets first with: kubectl apply -f ${MANIFEST_DIR}/secrets"
+    echo "    Apply core resources with: kubectl apply -k ${MANIFEST_DIR}"
+    echo "    Apply ingress with:       kubectl apply -f ${MANIFEST_DIR}/ingress/n8n-ingress.yaml"
     echo "    Expected NodePort: http://localhost:30080"
     echo "    Expected Ingress:  https://${N8N_HOST_DEFAULT}"
 fi
