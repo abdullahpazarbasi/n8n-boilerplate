@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n8n
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: n8n
+  template:
+    metadata:
+      labels:
+        app: n8n
+    spec:
+      volumes:
+        - name: n8nvol
+          persistentVolumeClaim:
+            claimName: n8n-data
+      containers:
+        - name: n8n
+          image: n8nio/n8n:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: n8nvol
+              mountPath: /home/node/.n8n
+          envFrom:
+            - configMapRef:
+                name: n8n-config
+          env:
+            - name: N8N_EDITOR_BASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: N8N_EDITOR_BASE_URL
+            - name: N8N_TUNNEL_SUBDOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: N8N_TUNNEL_SUBDOMAIN
+            - name: WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: WEBHOOK_URL
+            - name: N8N_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: N8N_ENCRYPTION_KEY
+            - name: DB_POSTGRESDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: DB_POSTGRESDB_PASSWORD
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
