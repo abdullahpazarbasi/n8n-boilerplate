@@ -23,8 +23,12 @@ echo "--------------------------------------------------------------------------
 
 K8S_BASE_DIR="${ROOT_DIR}/k8s/base"
 
+if [ ! -f "${ROOT_DIR}/.env.local" ]; then
+	cp "${ROOT_DIR}/.env.local.dist" "${ROOT_DIR}/.env.local"
+fi
+
 if [ -z "${TUNNEL_TOKEN:-}" ]; then
-    echo "🛑  Set a Cloudflare Tunnel token into the file named '.env.local'" >&2
+    echo "🛑  Set a Cloudflare Tunnel token into '${ROOT_DIR}/.env.local'" >&2
     exit 2
 fi
 
@@ -50,7 +54,8 @@ ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/create-certs.sh" "${N8N_HOS
 TLS_CERT_PATH="${K8S_BASE_DIR}/certificates/${N8N_HOST}.crt.pem"
 TLS_KEY_PATH="${K8S_BASE_DIR}/certificates/${N8N_HOST}.key.pem"
 
-bash "${ROOT_DIR}/scripts/lib/ensure-minikube-exists.sh" && {
+# shellcheck disable=SC2097,SC2098
+ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/ensure-minikube-exists.sh" && {
     bash "${ROOT_DIR}/scripts/lib/assert-minikube-host-running.sh" || \
     bash "${ROOT_DIR}/scripts/lib/start-core.sh" || {
         echo "❌  Minikube '${PROFILE_NAME}' could not be started" >&2
