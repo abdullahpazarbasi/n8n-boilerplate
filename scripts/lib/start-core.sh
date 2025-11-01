@@ -2,10 +2,8 @@
 
 set -euo pipefail
 
-PROFILE_NAME="$1"
-
-if [ -z "${PROFILE_NAME}" ]; then
-    echo "⚠️  Usage: $0 <minikube-profile-name>" >&2
+if [ -z "${PROFILE_NAME:-}" ]; then
+    echo "🛑  PROFILE_NAME is undefined" >&2
     exit 1
 fi
 

@@ -2,14 +2,12 @@
 
 set -euo pipefail
 
-PROFILE_NAME="$1"
-
-if [ -z "${PROFILE_NAME}" ]; then
-    echo "⚠️  Usage: $0 <minikube-profile-name>" >&2
+if [ -z "${PROFILE_NAME:-}" ]; then
+    echo "🛑  PROFILE_NAME is undefined" >&2
     exit 1
 fi
 
-MAX_WAIT=120 # seconds
+MAX_WAIT=120 # in seconds
 
 for i in $( seq 3 3 $MAX_WAIT ); do
     CNT=$(minikube -p "${PROFILE_NAME}" kubectl -- get pods --all-namespaces -o json | jq -r '.items[] | select((.status.phase == "Running") and (.status.containerStatuses[]?.ready == false)) | [.metadata.namespace, .metadata.name] | @tsv' | wc -l)

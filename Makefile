@@ -1,16 +1,13 @@
 .DEFAULT_GOAL := setup
 SHELL := /bin/bash
 
-.PHONY: setup start all-pods-listed stop status-checked n8n-logs-viewed n8n-shell-connected postgres-logs-viewed postgres-shell-connected logs-viewed cleaned-up
+.PHONY: setup start stop status-checked n8n-logs-viewed n8n-shell-connected postgres-logs-viewed postgres-shell-connected cleaned-up
 
 setup:
 	bash scripts/setup.sh
 
 start:
 	bash scripts/start.sh
-
-all-pods-listed:
-	bash scripts/list-all-pods.sh
 
 stop:
 	bash scripts/stop.sh
@@ -29,9 +26,6 @@ postgres-logs-viewed:
 
 postgres-shell-connected:
 	bash scripts/execute-postgres-shell.sh
-
-logs-viewed:
-	minikube -p n8n logs
 
 cleaned-up:
 	@echo "🔥 This will terminate everything 🔥 Continue? (y/N)"
