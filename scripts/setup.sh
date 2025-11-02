@@ -88,6 +88,14 @@ fi
 minikube -p "${PROFILE_NAME}" kubectl -- rollout status deploy/postgres --timeout=300s
 minikube -p "${PROFILE_NAME}" kubectl -- rollout status deploy/n8n --timeout=300s
 
+COMMUNITY_NODE_PACKAGES=(
+    "n8n-nodes-globals"
+    "n8n-nodes-base64"
+)
+
+bash "${ROOT_DIR}/scripts/lib/install-community-nodes.sh" "${COMMUNITY_NODE_PACKAGES[@]}"
+
+echo ""
 sudo bash "${ROOT_DIR}/scripts/add-host-entry.sh" "${N8N_HOST}" "$(minikube -p "${PROFILE_NAME}" ip)"
 
 echo ""

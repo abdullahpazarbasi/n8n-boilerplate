@@ -16,4 +16,4 @@ if [ -z "${PROFILE_NAME:-}" ]; then
     exit 1
 fi
 
-minikube -p "${PROFILE_NAME}" kubectl -- exec -it "$(minikube -p "${PROFILE_NAME}" kubectl -- get pods -l app=postgres -o jsonpath='{.items[0].metadata.name}')" -- /bin/sh
+minikube -p "${PROFILE_NAME}" kubectl -- exec -it deploy/postgres -- /bin/sh
