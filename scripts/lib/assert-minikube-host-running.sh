@@ -7,7 +7,7 @@ if [ -z "${PROFILE_NAME:-}" ]; then
     exit 1
 fi
 
-if [ "$(minikube -p "${PROFILE_NAME}" status --format '{{.Host}}')" != "Running" ]; then
-    echo "🛑  Minikube '${PROFILE_NAME}' host is not running"
+if [ "$( minikube -p "${PROFILE_NAME}" status --format '{{.Host}}' )" != "Running" ]; then
+    echo "⚠️   Minikube '${PROFILE_NAME}' is not running"
     exit 2
 fi

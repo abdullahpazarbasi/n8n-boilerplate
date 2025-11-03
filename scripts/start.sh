@@ -21,13 +21,30 @@ echo "--------------------------------------------------------------------------
 echo " Start"
 echo "--------------------------------------------------------------------------------"
 
+set +e
 # shellcheck disable=SC2097,SC2098
-ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/ensure-minikube-exists.sh" && {
-	bash "${ROOT_DIR}/scripts/lib/assert-minikube-host-running.sh" || \
-	bash "${ROOT_DIR}/scripts/lib/start-core.sh" || {
-		echo "❌  Minikube '${PROFILE_NAME}' could not be started" >&2
-		exit 2
-	}
-}
+ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/ensure-minikube-exists.sh"
+exit_code=$?
+set -e
+if [ $exit_code -ne 0 ]; then
+    echo "🛑  Minikube is not available (exit code: ${exit_code})" >&2
+    exit 2
+fi
+
+set +e
+bash "${ROOT_DIR}/scripts/lib/assert-minikube-host-running.sh"
+exit_code=$?
+set -e
+if [ $exit_code -ne 0 ]; then
+	echo "⏳  Minikube '${PROFILE_NAME}' is being started (exit code: ${exit_code})..."
+	set +e
+    bash "${ROOT_DIR}/scripts/lib/start-core.sh"
+    exit_code=$?
+	set -e
+    if [ $exit_code -ne 0 ]; then
+        echo "🛑  Minikube '${PROFILE_NAME}' could not be started (exit code: ${exit_code})" >&2
+        exit 3
+    fi
+fi
 
 bash "${ROOT_DIR}/scripts/lib/view-n8n-urls.sh"

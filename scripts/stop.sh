@@ -21,5 +21,10 @@ echo "--------------------------------------------------------------------------
 echo " Stop"
 echo "--------------------------------------------------------------------------------"
 
-bash "${ROOT_DIR}/scripts/lib/assert-minikube-host-running.sh" && \
-minikube -p "${PROFILE_NAME}" stop
+set +e
+bash "${ROOT_DIR}/scripts/lib/assert-minikube-host-running.sh"
+exit_code=$?
+set -e
+if [ $exit_code -eq 0 ]; then
+	minikube -p "${PROFILE_NAME}" stop
+fi

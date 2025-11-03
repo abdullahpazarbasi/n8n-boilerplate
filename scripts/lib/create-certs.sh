@@ -19,8 +19,8 @@ mkdir -p "${CERTIFICATE_DIR}"
 
 KEY_FILE_NAME="${HOSTNAME}.key.pem"
 CRT_FILE_NAME="${HOSTNAME}.crt.pem"
-KEY_FILE_PATH="${CERTIFICATE_DIR}/$KEY_FILE_NAME"
-CRT_FILE_PATH="${CERTIFICATE_DIR}/$CRT_FILE_NAME"
+KEY_FILE_PATH="${CERTIFICATE_DIR}/${KEY_FILE_NAME}"
+CRT_FILE_PATH="${CERTIFICATE_DIR}/${CRT_FILE_NAME}"
 
 if [ ! -f "${KEY_FILE_PATH}" ] || [ ! -f "${CRT_FILE_PATH}" ]; then
     bash "${ROOT_DIR}/scripts/lib/ensure-mkcert-exists.sh" && \

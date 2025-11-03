@@ -30,9 +30,15 @@ minikube -p "$PROFILE_NAME" addons list
 echo ""
 echo "🖥  Minikube host:"
 echo "--------------------------------------------------------------------------------"
-bash "${ROOT_DIR}/scripts/lib/assert-minikube-host-running.sh" && \
-echo "🏃  Minikube host '$PROFILE_NAME' is running" || \
-exit 0
+set +e
+bash "${ROOT_DIR}/scripts/lib/assert-minikube-host-running.sh"
+exit_code=$?
+set -e
+if [ $exit_code -eq 0 ]; then
+	echo "🏃  Minikube '$PROFILE_NAME' is running"
+else
+	exit 0
+fi
 
 echo ""
 echo "🕸  Minikube IP:"
@@ -87,9 +93,15 @@ minikube -p "$PROFILE_NAME" kubectl -- get secrets
 echo ""
 echo "🚑  Cluster Health:"
 echo "--------------------------------------------------------------------------------"
-bash "${ROOT_DIR}/scripts/lib/check-cluster-health.sh" && \
-echo "👮  The cluster '$PROFILE_NAME' is ready" || \
-exit 0
+set +e
+bash "${ROOT_DIR}/scripts/lib/wait-for-cluster-to-become-healthy.sh"
+exit_code=$?
+set -e
+if [ $exit_code -eq 0 ]; then
+	echo "👮  Minikube '$PROFILE_NAME' is ready"
+else
+	exit 0
+fi
 
 echo ""
 echo "🔗  URLs:"

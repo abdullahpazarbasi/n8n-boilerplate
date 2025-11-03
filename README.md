@@ -12,3 +12,19 @@
 ```sh
 make setup
 ```
+
+## Extras
+
+### Additional Postgres DB Creation
+
+> **Usage:**
+>
+> ```sh
+> ./scripts/create-db-in-postgres.sh -n <DB_NAME> -u <DB_USER> -p <DB_PASS> [-P <profile>] [-s <namespace>] [-l <pod_regex>] [-x <superuser>] [-W <superpass>] [--debug]
+> ```
+>
+> **Example:**
+>
+> ```sh
+> ./scripts/create-db-in-postgres.sh -n authn -u authn -p '12345678' -P n8n
+> ```
