@@ -28,3 +28,8 @@ make setup
 > ```sh
 > ./scripts/create-db-in-postgres.sh -n authn -u authn -p '12345678' -P n8n
 > ```
+
+### Suggested n8n Community Nodes
+
+- [n8n-nodes-globals](https://www.npmjs.com/package/n8n-nodes-globals)
+- [n8n-nodes-base64](https://www.npmjs.com/package/n8n-nodes-base64)

@@ -31,25 +31,25 @@ if minikube -p "${PROFILE_NAME}" ssh -- "pgrep dockerd" > /dev/null; then
     if minikube -p "${PROFILE_NAME}" ssh -- "sudo systemctl restart docker" > /dev/null; then
         while [ "${elapsed}" -lt "${timeout}" ]; do
             if minikube -p "${PROFILE_NAME}" ssh -- "sudo systemctl is-active --quiet docker && docker info" > /dev/null 2>&1; then
-                echo "✅  Minikube 'docker' is ready"
+                echo "✅  Docker of minikube is ready"
                 break
             fi
             sleep "${interval}"
 			elapsed=$((elapsed + interval))
-            echo "⏳  Minikube 'docker' is not ready yet (${elapsed} second(s) elapsed)..."
+            echo "⏳  Docker of minikube is not ready yet (${elapsed} second(s) elapsed)..."
         done
 		elapsed=0
         while [ "${elapsed}" -lt "${timeout}" ]; do
             if minikube -p "${PROFILE_NAME}" kubectl -- get nodes > /dev/null 2>&1; then
-                echo "✅  Minikube 'kubernetes' is ready"
+                echo "✅  Kubernetes of minikube is ready"
                 break
             fi
             sleep "${interval}"
 			elapsed=$((elapsed + interval))
-            echo "⏳  Minikube 'kubernetes' is not ready yet (${elapsed} second(s) elapsed)..."
+            echo "⏳  Kubernetes of minikube is not ready yet (${elapsed} second(s) elapsed)..."
         done
     else
-        echo "🛑  Minikube 'docker' could not be restarted" >&2
+        echo "🛑  Docker of minikube could not be restarted" >&2
         exit 4
     fi
 else
