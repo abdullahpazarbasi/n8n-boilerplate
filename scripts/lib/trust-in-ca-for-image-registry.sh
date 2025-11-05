@@ -14,8 +14,8 @@ fi
 
 registry_port="5000"
 
-timeout=120 # in seconds
-interval=3 # in seconds
+timeout=300 # in seconds
+interval=7 # in seconds
 elapsed=0 # in seconds
 
 registry_authority="${REGISTRY_HOST}:${registry_port}"

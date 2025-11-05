@@ -7,7 +7,7 @@ if [ -z "${REGISTRY_HOST:-}" ]; then
     exit 1
 fi
 
-timeout=120 # in seconds
+timeout=300 # in seconds
 interval=7 # in seconds
 
 now() { date +%s; }

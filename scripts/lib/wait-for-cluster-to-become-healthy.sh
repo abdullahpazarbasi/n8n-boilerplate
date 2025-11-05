@@ -7,8 +7,8 @@ if [ -z "${PROFILE_NAME:-}" ]; then
     exit 1
 fi
 
-timeout=120 # in seconds
-interval=3 # in seconds
+timeout=300 # in seconds
+interval=7 # in seconds
 
 now() { date +%s; }
 deadline=$(( $(now) + timeout ))

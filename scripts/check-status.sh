@@ -18,8 +18,38 @@ fi
 
 echo ""
 echo "--------------------------------------------------------------------------------"
-echo "🔎  Status"
+echo " 🩺  Status"
 echo "--------------------------------------------------------------------------------"
+
+echo ""
+echo "🖥  The Image Registry:"
+echo "--------------------------------------------------------------------------------"
+
+set +e
+bash "${ROOT_DIR}/scripts/lib/assert-image-registry-container-exists.sh"
+exit_code=$?
+set -e
+if [ $exit_code -eq 0 ]; then
+	echo "👍  The image registry container exists"
+fi
+
+set +e
+bash "${ROOT_DIR}/scripts/lib/assert-image-registry-running.sh"
+exit_code=$?
+set -e
+if [ $exit_code -eq 0 ]; then
+	echo "🏃  The image registry is running"
+fi
+
+set +e
+bash "${ROOT_DIR}/scripts/lib/wait-for-image-registry-to-become-healthy.sh"
+exit_code=$?
+set -e
+if [ $exit_code -eq 0 ]; then
+	echo "✅  The image registry is healthy"
+else
+	echo "❌  The image registry is not healthy" >&2
+fi
 
 echo ""
 echo "✨  Minikube addons:"

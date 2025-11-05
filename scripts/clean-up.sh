@@ -16,5 +16,11 @@ if [ -z "${PROFILE_NAME:-}" ]; then
     exit 1
 fi
 
+echo ""
+echo "--------------------------------------------------------------------------------"
+echo " ☢️  Cleaning Up"
+echo "--------------------------------------------------------------------------------"
+
 minikube -p "${PROFILE_NAME}" delete
 rm -f "${ROOT_DIR}/k8s/base/certificates/*.pem"
+rm -rf "${ROOT_DIR}/.cache/*"

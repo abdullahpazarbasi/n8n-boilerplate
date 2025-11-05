@@ -16,22 +16,12 @@ if [ -z "${PROFILE_NAME:-}" ]; then
     exit 1
 fi
 
-registry_container_name="registry"
-
 echo ""
 echo "--------------------------------------------------------------------------------"
-echo " Start"
+echo " 🏁  Start"
 echo "--------------------------------------------------------------------------------"
 
-set +e
-# shellcheck disable=SC2097,SC2098
-ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/ensure-minikube-exists.sh"
-exit_code=$?
-set -e
-if [ $exit_code -ne 0 ]; then
-    echo "🛑  Minikube is not available (exit code: ${exit_code})" >&2
-    exit 2
-fi
+registry_container_name="registry"
 
 if [ "$( docker inspect -f '{{.State.Running}}' "${registry_container_name}" 2>/dev/null )" != "true" ]; then
   	docker start "${registry_container_name}"
@@ -45,7 +35,19 @@ if [ $exit_code -eq 0 ]; then
 	echo "✅  The image registry is healthy"
 else
 	echo "❌  The image registry is not healthy" >&2
-	exit 3
+	exit 2
+fi
+
+################################################################################
+
+set +e
+# shellcheck disable=SC2097,SC2098
+ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/ensure-minikube-exists.sh"
+exit_code=$?
+set -e
+if [ $exit_code -ne 0 ]; then
+    echo "🛑  Minikube is not available (exit code: ${exit_code})" >&2
+    exit 3
 fi
 
 set +e
@@ -55,7 +57,7 @@ set -e
 if [ $exit_code -ne 0 ]; then
 	echo "⏳  Minikube '${PROFILE_NAME}' is being started (exit code: ${exit_code})..."
 	set +e
-    bash "${ROOT_DIR}/scripts/lib/start-core.sh"
+    bash "${ROOT_DIR}/scripts/lib/start-minikube-cluster.sh"
     exit_code=$?
 	set -e
     if [ $exit_code -ne 0 ]; then
@@ -73,18 +75,18 @@ if [ $exit_code -eq 0 ]; then
     echo "✅  Host IP resolved: ${host_IP}"
 else
     echo "🛑  Host IP could not be resolved (exit code: ${exit_code})" >&2
-    exit 8
+    exit 5
 fi
 
 set +e
-bash "${ROOT_DIR}/scripts/add-image-registry-host-entry.sh" "${host_IP}"
+bash "${ROOT_DIR}/scripts/add-image-registry-host-entry-in-minikube.sh" "${host_IP}"
 exit_code=$?
 set -e
 if [ $exit_code -eq 0 ]; then
     echo "✅  The image registry hostname is registered"
 else
     echo "🛑  The image registry hostname could not be registered (exit code: ${exit_code})" >&2
-    exit 5
+    exit 6
 fi
 
 set +e
@@ -95,8 +97,10 @@ if [ $exit_code -eq 0 ]; then
     echo "✅  Minikube '${PROFILE_NAME}' now trusts the root CA"
 else
     echo "🛑  Minikube '${PROFILE_NAME}' could not trust in root CA (exit code: ${exit_code})" >&2
-    exit 6
+    exit 7
 fi
+
+################################################################################
 
 set +e
 bash "${ROOT_DIR}/scripts/lib/wait-for-cluster-to-become-healthy.sh"
@@ -106,7 +110,8 @@ if [ $exit_code -eq 0 ]; then
 	echo "👮  Minikube '$PROFILE_NAME' is ready"
 else
     echo "🛑  Minikube '${PROFILE_NAME}' is not ready (exit code: ${exit_code})" >&2
-    exit 7
+    exit 8
 fi
 
 bash "${ROOT_DIR}/scripts/lib/view-n8n-urls.sh"
+echo "👌  Started."

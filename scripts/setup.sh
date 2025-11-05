@@ -18,7 +18,7 @@ fi
 
 echo ""
 echo "--------------------------------------------------------------------------------"
-echo " Setup"
+echo " 🏗️  Setup"
 echo "--------------------------------------------------------------------------------"
 
 K8S_BASE_DIR="${ROOT_DIR}/k8s/base"
@@ -58,22 +58,24 @@ fi
 
 set +e
 # shellcheck disable=SC2097,SC2098
+ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/create-cluster-tls-certificates.sh" "${N8N_HOST}"
+exit_code=$?
+set -e
+if [ $exit_code -ne 0 ]; then
+    echo "🛑  TLS certificates could not be created (exit code: ${exit_code})" >&2
+    exit 6
+fi
+
+################################################################################
+
+set +e
+# shellcheck disable=SC2097,SC2098
 ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/ensure-docker-exists.sh"
 exit_code=$?
 set -e
 if [ $exit_code -ne 0 ]; then
     echo "🛑  Docker is not available (exit code: ${exit_code})" >&2
-    exit 16
-fi
-
-set +e
-# shellcheck disable=SC2097,SC2098
-ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/ensure-minikube-exists.sh"
-exit_code=$?
-set -e
-if [ $exit_code -ne 0 ]; then
-    echo "🛑  Minikube is not available (exit code: ${exit_code})" >&2
-    exit 6
+    exit 7
 fi
 
 set +e
@@ -83,7 +85,7 @@ exit_code=$?
 set -e
 if [ $exit_code -ne 0 ]; then
     echo "🛑  n8n image could not be built (exit code: ${exit_code})" >&2
-    exit 12
+    exit 8
 fi
 
 set +e
@@ -93,7 +95,39 @@ exit_code=$?
 set -e
 if [ $exit_code -ne 0 ]; then
     echo "🛑  postgres image could not be built (exit code: ${exit_code})" >&2
-    exit 13
+    exit 9
+fi
+
+set +e
+# shellcheck disable=SC2097,SC2098
+ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/register-n8n-image.sh"
+exit_code=$?
+set -e
+if [ $exit_code -ne 0 ]; then
+    echo "🛑  n8n image could not be registered (exit code: ${exit_code})" >&2
+    exit 10
+fi
+
+set +e
+# shellcheck disable=SC2097,SC2098
+ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/register-postgres-image.sh"
+exit_code=$?
+set -e
+if [ $exit_code -ne 0 ]; then
+    echo "🛑  postgres image could not be registered (exit code: ${exit_code})" >&2
+    exit 11
+fi
+
+################################################################################
+
+set +e
+# shellcheck disable=SC2097,SC2098
+ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/ensure-minikube-exists.sh"
+exit_code=$?
+set -e
+if [ $exit_code -ne 0 ]; then
+    echo "🛑  Minikube is not available (exit code: ${exit_code})" >&2
+    exit 12
 fi
 
 set +e
@@ -103,46 +137,36 @@ set -e
 if [ $exit_code -ne 0 ]; then
 	echo "⏳  Minikube '${PROFILE_NAME}' is being started (exit code: ${exit_code})..."
 	set +e
-    bash "${ROOT_DIR}/scripts/lib/start-core.sh"
+    bash "${ROOT_DIR}/scripts/lib/start-minikube-cluster.sh"
     exit_code=$?
 	set -e
     if [ $exit_code -ne 0 ]; then
         echo "🛑  Minikube '${PROFILE_NAME}' could not be started (exit code: ${exit_code})" >&2
-        exit 7
+        exit 13
     fi
 fi
 
 set +e
 # shellcheck disable=SC2097,SC2098
-HOST_IP="$( ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/resolve-host-ip.sh" )"
+host_IP="$( ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/resolve-host-ip.sh" )"
 exit_code=$?
 set -e
 if [ $exit_code -eq 0 ]; then
-    echo "✅  Host IP resolved: ${HOST_IP}"
+    echo "✅  Host IP resolved: ${host_IP}"
 else
     echo "🛑  Host IP could not be resolved (exit code: ${exit_code})" >&2
-    exit 8
+    exit 14
 fi
 
 set +e
-# shellcheck disable=SC2097,SC2098
-ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/create-certs.sh" "${N8N_HOST}"
-exit_code=$?
-set -e
-if [ $exit_code -ne 0 ]; then
-    echo "🛑  TLS certificates could not be created (exit code: ${exit_code})" >&2
-    exit 9
-fi
-
-set +e
-bash "${ROOT_DIR}/scripts/add-image-registry-host-entry.sh" "$HOST_IP"
+bash "${ROOT_DIR}/scripts/add-image-registry-host-entry-in-minikube.sh" "${host_IP}"
 exit_code=$?
 set -e
 if [ $exit_code -eq 0 ]; then
     echo "✅  The image registry hostname is registered"
 else
     echo "🛑  The image registry hostname could not be registered (exit code: ${exit_code})" >&2
-    exit 10
+    exit 15
 fi
 
 set +e
@@ -153,28 +177,10 @@ if [ $exit_code -eq 0 ]; then
     echo "✅  Minikube '${PROFILE_NAME}' now trusts the root CA"
 else
     echo "🛑  Minikube '${PROFILE_NAME}' could not trust in root CA (exit code: ${exit_code})" >&2
-    exit 11
+    exit 16
 fi
 
-set +e
-# shellcheck disable=SC2097,SC2098
-ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/register-n8n-image.sh"
-exit_code=$?
-set -e
-if [ $exit_code -ne 0 ]; then
-    echo "🛑  n8n image could not be registered (exit code: ${exit_code})" >&2
-    exit 14
-fi
-
-set +e
-# shellcheck disable=SC2097,SC2098
-ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/register-postgres-image.sh"
-exit_code=$?
-set -e
-if [ $exit_code -ne 0 ]; then
-    echo "🛑  postgres image could not be registered (exit code: ${exit_code})" >&2
-    exit 15
-fi
+################################################################################
 
 minikube -p "${PROFILE_NAME}" kubectl -- delete secret "n8n-secrets" >/dev/null 2>&1 || true
 minikube -p "${PROFILE_NAME}" kubectl -- create secret generic "n8n-secrets" \
@@ -202,10 +208,25 @@ else
 	echo ""
 fi
 
+################################################################################
+
+sudo bash "${ROOT_DIR}/scripts/add-host-entry-in-host.sh" "${N8N_HOST}" "$(minikube -p "${PROFILE_NAME}" ip)"
+
+################################################################################
+
 minikube -p "${PROFILE_NAME}" kubectl -- rollout status deploy/postgres --timeout=300s
 minikube -p "${PROFILE_NAME}" kubectl -- rollout status deploy/n8n --timeout=300s
 
-echo ""
-sudo bash "${ROOT_DIR}/scripts/add-host-entry.sh" "${N8N_HOST}" "$(minikube -p "${PROFILE_NAME}" ip)"
+set +e
+bash "${ROOT_DIR}/scripts/lib/wait-for-cluster-to-become-healthy.sh"
+exit_code=$?
+set -e
+if [ $exit_code -eq 0 ]; then
+	echo "👮  Minikube '$PROFILE_NAME' is ready"
+else
+    echo "🛑  Minikube '${PROFILE_NAME}' is not ready (exit code: ${exit_code})" >&2
+    exit 17
+fi
+
 bash "${ROOT_DIR}/scripts/lib/view-n8n-urls.sh"
 echo "👌  Setup completed."

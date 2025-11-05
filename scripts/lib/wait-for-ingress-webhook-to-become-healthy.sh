@@ -45,14 +45,14 @@ echo "⏳  Waiting helper pod to be Ready..."
 minikube -p "${PROFILE_NAME}" kubectl -- -n "${namespace}" wait pod/"${helper}" --for=condition=Ready --timeout=90s
 
 probe_service_dns() {
-    minikube -p "${PROFILE_NAME}" kubectl -- -n "${namespace}" exec -i "${helper}" -- sh -lc "curl -ks --connect-timeout 3 --max-time 5 https://${service}.${namespace}.svc:443/ -o /dev/null"
+    minikube -p "${PROFILE_NAME}" kubectl -- -n "${namespace}" exec -i "${helper}" -- sh -lc "curl -ks --connect-timeout 3 --max-time 7 https://${service}.${namespace}.svc:443/ -o /dev/null"
 }
 
 probe_loopback() {
     local controller_pod
     controller_pod="$( minikube -p "${PROFILE_NAME}" kubectl -- -n "${namespace}" get pods -l app.kubernetes.io/name=ingress-nginx,app.kubernetes.io/component=controller -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true )"
     [ -n "${controller_pod}" ] || return 1
-    minikube -p "${PROFILE_NAME}" kubectl -- -n "${namespace}" exec -i "${controller_pod}" -- sh -lc "curl -ks --connect-timeout 2 --max-time 4 https://127.0.0.1:8443/ -o /dev/null"
+    minikube -p "${PROFILE_NAME}" kubectl -- -n "${namespace}" exec -i "${controller_pod}" -- sh -lc "curl -ks --connect-timeout 2 --max-time 7 https://127.0.0.1:8443/ -o /dev/null"
 }
 
 echo "⏳  Probing admission TLS..."
