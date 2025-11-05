@@ -11,12 +11,103 @@ ROOT_DIR="$(pwd)"
 # shellcheck source=/dev/null
 source "${ROOT_DIR}/scripts/lib/dotenv.sh"
 
-if [ -z "${PROFILE_NAME:-}" ]; then
-    echo "🛑  PROFILE_NAME is undefined" >&2
+if [ -z "${REGISTRY_HOST:-}" ]; then
+    echo "🛑  REGISTRY_HOST is undefined" >&2
     exit 1
 fi
 
 now() { date +%s; }
+
+# shellcheck source=/dev/null
+source "${ROOT_DIR}/scripts/lib/is-debian.sh"
+# shellcheck source=/dev/null
+source "${ROOT_DIR}/scripts/lib/is-darwin.sh"
+
+wait_for_docker_host_linux() {
+    local timeout="$1"
+    local interval="$2"
+    local deadline=$(( $(now) + timeout ))
+
+    while :; do
+        if [ "$(now)" -ge "${deadline}" ]; then
+            echo "🛑  Docker of host could not be ready within ${timeout} second(s)" >&2
+            return 1
+        fi
+
+        if systemctl is-active --quiet docker > /dev/null 2>&1 && docker info > /dev/null 2>&1; then
+            echo "✅  Docker of host is ready"
+            return 0
+        fi
+
+        echo "⏳  Docker of host is not ready yet..."
+        sleep "${interval}"
+    done
+}
+
+wait_for_docker_host_darwin() {
+    local timeout="$1"
+    local interval="$2"
+    local deadline=$(( $(now) + timeout ))
+
+    while :; do
+        if [ "$(now)" -ge "${deadline}" ]; then
+            echo "🛑  Docker Desktop could not be ready within ${timeout} second(s)" >&2
+            return 1
+        fi
+
+        if docker info > /dev/null 2>&1; then
+            echo "✅  Docker Desktop is ready"
+            return 0
+        fi
+
+        echo "⏳  Docker Desktop is not ready yet..."
+        sleep "${interval}"
+    done
+}
+
+restart_docker_host() {
+	local timeout=300
+	local interval=7
+
+	if is_debian; then
+        echo "♻️  Restarting Docker of host..."
+
+        if sudo systemctl restart docker > /dev/null; then
+            if ! wait_for_docker_host_linux "${timeout}" "${interval}"; then
+                return 2
+            fi
+        else
+            echo "🛑  Docker of host could not be restarted" >&2
+            return 1
+        fi
+    elif is_darwin; then
+        echo "♻️  Restarting Docker Desktop..."
+
+        if command -v osascript >/dev/null 2>&1; then
+            osascript -e 'try' -e 'tell application "Docker Desktop" to quit' -e 'end try' >/dev/null 2>&1
+            osascript -e 'try' -e 'tell application "Docker" to quit' -e 'end try' >/dev/null 2>&1
+        else
+            echo "⚠️  'osascript' is not available. Restart Docker Desktop manually to load new certificates." >&2
+        fi
+
+        sleep 2
+
+        if command -v open >/dev/null 2>&1; then
+            open -a "Docker" >/dev/null 2>&1 || true
+            open -a "Docker Desktop" >/dev/null 2>&1 || true
+        else
+            echo "⚠️  'open' command is not available. Start Docker Desktop manually if needed." >&2
+        fi
+
+        if ! wait_for_docker_host_darwin "${timeout}" "${interval}"; then
+            return 2
+        fi
+    else
+		OS_NAME="$(uname -s)"
+		echo "❗  Automatic installation not supported on ${OS_NAME}" >&2
+		return 3
+    fi
+}
 
 echo ""
 echo "--------------------------------------------------------------------------------"
@@ -85,32 +176,25 @@ if [ ! -f "${registry_crt_file_path}" ] || [ ! -f "${registry_key_file_path}" ];
     exit 5
 fi
 
-timeout=300
-deadline=$(( $(now) + timeout ))
+if is_debian; then
+	target_ca_cert_dir="/etc/docker/certs.d/${REGISTRY_HOST}:5000"
+	target_ca_cert_path="${target_ca_cert_dir}/ca.crt"
+elif is_darwin; then
+    target_ca_cert_dir="${HOME}/Library/Group Containers/group.com.docker/certs.d/${REGISTRY_HOST}:5000"
+    target_ca_cert_path="${target_ca_cert_dir}/ca.crt"
+else
+	exit 6
+fi
 
-target_ca_cert_dir="/etc/docker/certs.d/${REGISTRY_HOST}:5000"
-target_ca_cert_path="${target_ca_cert_dir}/ca.crt"
 if [ ! -f "${target_ca_cert_path}" ]; then
-    source_ca_cert_dir=$( mkcert -CAROOT )
+    source_ca_cert_dir="$(mkcert -CAROOT)"
     source_ca_cert_path="${source_ca_cert_dir}/rootCA.pem"
-    sudo mkdir -p "${target_ca_cert_dir}"
-    sudo cp -f "${source_ca_cert_path}" "${target_ca_cert_path}"
-    if sudo systemctl restart docker > /dev/null; then
-        while :; do
-			if [ "$(now)" -ge "${deadline}" ]; then
-				echo "🛑  Host 'docker' could not be ready within ${timeout} second(s)" >&2
-				exit 7
-			fi
-            if systemctl is-active --quiet docker > /dev/null 2>&1 && docker info > /dev/null 2>&1; then
-                echo "✅  Host 'docker' is ready"
-                break
-            fi
-            echo "⏳  Host 'docker' is not ready yet..."
-            sleep 3
-        done
-    else
-        echo "🛑  Host 'docker' could not be restarted" >&2
-        exit 6
+
+	mkdir -p "${target_ca_cert_dir}"
+	cp -f "${source_ca_cert_path}" "${target_ca_cert_path}"
+
+    if ! restart_docker_host; then
+        exit 7
     fi
 fi
 
@@ -132,10 +216,9 @@ set +e
 bash "${ROOT_DIR}/scripts/lib/wait-for-image-registry-to-become-healthy.sh"
 exit_code=$?
 set -e
-if [ $exit_code -eq 0 ]; then
-	echo "✅  The image registry is healthy"
-	exit 0
-else
+if [ $exit_code -ne 0 ]; then
 	echo "❌  The image registry is not healthy" >&2
 	exit 8
 fi
+
+echo "✅  The image registry is healthy"
