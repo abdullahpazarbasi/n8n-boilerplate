@@ -7,7 +7,7 @@ if [ -z "${PROFILE_NAME:-}" ]; then
     exit 1
 fi
 
-timeout=300 # in seconds
+timeout=600 # in seconds
 interval=7 # in seconds
 
 now() { date +%s; }
@@ -25,7 +25,7 @@ while :; do
 
     sleep "${interval}"
 	elapsed=$(( timeout - (deadline - $(now)) ))
-    echo "⏳  Minikube '${PROFILE_NAME}' is being waited (${elapsed} second(s) elapsed)..."
+    echo "⏳  Minikube '${PROFILE_NAME}' is being waited for (${elapsed} second(s) elapsed)..."
 done
 
 echo "❌  Minikube '${PROFILE_NAME}' was not ready within ${elapsed} second(s)" >&2

@@ -11,7 +11,7 @@ namespace="ingress-nginx"
 service="ingress-nginx-controller-admission"
 deployment="ingress-nginx-controller"
 
-timeout=300
+timeout=600
 interval=7
 
 now() { date +%s; }
