@@ -61,7 +61,7 @@ if command -v mkcert > /dev/null 2>&1; then
     echo "📦  Current mkcert version: v${CURRENT_VERSION}"
 fi
 
-LATEST_VERSION=$(curl -Ls "https://api.github.com/repos/FiloSottile/mkcert/releases/latest" | grep '"tag_name":' | cut -d '"' -f 4 | sed 's/v//')
+LATEST_VERSION="$( curl -Ls "https://api.github.com/repos/FiloSottile/mkcert/releases/latest" | grep '"tag_name":' | cut -d '"' -f 4 | sed 's/v//' )"
 if [[ -z "${LATEST_VERSION}" ]]; then
     echo "❗  Unable to determine the latest mkcert version." >&2
     exit 4
@@ -89,7 +89,7 @@ if ! command -v certutil > /dev/null 2>&1; then
     esac
 fi
 
-echo "⬇️  Installing mkcert for ${PLATFORM}-${ARCH}..."
+echo "⬇️   Installing mkcert for ${PLATFORM}-${ARCH}..."
 
 tmp="$(mktemp)"
 MKCERT_URL="https://github.com/FiloSottile/mkcert/releases/download/v${LATEST_VERSION}/mkcert-v${LATEST_VERSION}-${PLATFORM}-${ARCH}"

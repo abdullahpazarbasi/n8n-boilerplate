@@ -1,15 +1,15 @@
 .DEFAULT_GOAL := setup
 SHELL := /bin/bash
 
-.PHONY: setup start stop status-checked n8n-logs-viewed n8n-shell-connected postgres-logs-viewed postgres-shell-connected cleaned-up
+.PHONY: setup started stopped status-checked n8n-logs-viewed n8n-shell-connected postgres-logs-viewed postgres-shell-connected cleaned-up
 
 setup:
 	bash scripts/setup.sh
 
-start:
+started:
 	bash scripts/start.sh
 
-stop:
+stopped:
 	bash scripts/stop.sh
 
 status-checked:

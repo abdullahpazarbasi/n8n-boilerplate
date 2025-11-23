@@ -59,7 +59,7 @@ if command -v minikube > /dev/null 2>&1; then
     echo "📦  Current minikube version: v${CURRENT_VERSION}"
 fi
 
-LATEST_VERSION=$(curl -Ls "https://api.github.com/repos/kubernetes/minikube/releases/latest" | grep '"tag_name":' | cut -d '"' -f 4 | sed 's/v//')
+LATEST_VERSION="$( curl -Ls "https://api.github.com/repos/kubernetes/minikube/releases/latest" | grep '"tag_name":' | cut -d '"' -f 4 | sed 's/v//' )"
 if [[ -z "${LATEST_VERSION}" ]]; then
     echo "❗  Unable to determine the latest minikube version." >&2
     exit 4
@@ -72,7 +72,7 @@ if [[ "${CURRENT_VERSION}" == "${LATEST_VERSION}" ]]; then
     exit 0
 fi
 
-echo "⬇️  Downloading minikube binary for ${PLATFORM}-${ARCH}..."
+echo "⬇️   Downloading minikube binary for ${PLATFORM}-${ARCH}..."
 
 tmp="$(mktemp)"
 MINIKUBE_URL="https://storage.googleapis.com/minikube/releases/latest/minikube-${PLATFORM}-${ARCH}"

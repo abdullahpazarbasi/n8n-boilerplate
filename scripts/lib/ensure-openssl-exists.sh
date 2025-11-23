@@ -9,7 +9,7 @@ if command -v "openssl" >/dev/null 2>&1; then
     exit 0
 fi
 
-echo "⬇️  Installing openssl..."
+echo "⬇️   Installing openssl..."
 
 # shellcheck source=/dev/null
 source "${ROOT_DIR}/scripts/lib/is-debian.sh"
