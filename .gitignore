@@ -29,3 +29,5 @@ jspm_packages/
 # Cache and Backup files
 .cache/
 /backup/credentials/*
+!/backup/credentials/19E4EDClqDklWGL1.json
+!/backup/credentials/INrTklNY4SJgEa0f.json

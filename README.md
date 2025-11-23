@@ -29,6 +29,33 @@ make setup
 > ./scripts/create-db-in-postgres.sh -n authn -u authn -p '12345678' -P n8n
 > ```
 
+### AI-Related Services
+
+- [Ollama](https://ollama.com/): Cross-platform LLM platform to install and run the latest local LLMs
+- [Qdrant](https://qdrant.tech/): Open-source, high performance vector store with a comprehensive API
+
+### Ollama Model Pulling
+
+First, you should access the shell of ollama
+
+```sh
+make ollama-shell-connected
+```
+
+After that,
+
+you can pull `GPT-OSS LLM`
+
+```sh
+ollama pull gpt-oss
+```
+
+you can pull `BGE M3 Embedding Model`
+
+```sh
+ollama pull bge-m3
+```
+
 ### Suggested n8n Community Nodes
 
 - [n8n-nodes-globals](https://www.npmjs.com/package/n8n-nodes-globals)

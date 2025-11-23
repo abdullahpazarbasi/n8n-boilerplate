@@ -28,13 +28,13 @@ spec:
               mountPath: /qdrant/storage
           readinessProbe:
             httpGet:
-              path: /ready
+              path: /healthz
               port: 6333
             initialDelaySeconds: 15
             periodSeconds: 5
           livenessProbe:
             httpGet:
-              path: /ready
+              path: /healthz
               port: 6333
             initialDelaySeconds: 30
             periodSeconds: 10
