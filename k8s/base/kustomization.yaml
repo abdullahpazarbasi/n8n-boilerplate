@@ -3,11 +3,17 @@ kind: Kustomization
 
 resources:
   - config/n8n-configmap.yaml
+  - storage/ollama-pvc.yaml
+  - storage/qdrant-pvc.yaml
   - storage/postgres-pvc.yaml
   - storage/n8n-pvc.yaml
   - postgres/deployment.yaml
   - postgres/service.yaml
   - cloudflared/deployment.yaml
+  - ollama/deployment.yaml
+  - ollama/service.yaml
+  - qdrant/deployment.yaml
+  - qdrant/service.yaml
   - n8n/deployment.yaml
   - n8n/service.yaml
 

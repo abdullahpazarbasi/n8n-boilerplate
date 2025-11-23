@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qdrant
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qdrant
+  template:
+    metadata:
+      labels:
+        app: qdrant
+    spec:
+      volumes:
+        - name: qdrant-storage
+          persistentVolumeClaim:
+            claimName: qdrant-storage
+      containers:
+        - name: qdrant
+          image: qdrant/qdrant:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 6333
+            - containerPort: 6334
+          volumeMounts:
+            - name: qdrant-storage
+              mountPath: /qdrant/storage
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 6333
+            initialDelaySeconds: 15
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 6333
+            initialDelaySeconds: 30
+            periodSeconds: 10
