@@ -7,8 +7,6 @@
 #   ./create-db-in-postgres.sh -n example -u myuser -p '12345678' -P n8n
 #
 # Notes:
-# - Comments and messages are in English (as requested).
-# - Requires: minikube, awk, grep, kubectl (or use minikube's built-in kubectl).
 # - By default, searches all namespaces in the given profile and picks the first Running pod whose name matches /postgres/.
 # - You can override namespace and selector if your labels/names differ.
 
