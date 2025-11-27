@@ -58,7 +58,7 @@ fi
 
 set +e
 # shellcheck disable=SC2097,SC2098
-ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/create-cluster-tls-certificates.sh" "${N8N_HOST}"
+ROOT_DIR="${ROOT_DIR}" bash "${ROOT_DIR}/scripts/lib/ensure-cluster-tls-certificates-exist.sh" "${N8N_HOST}"
 exit_code=$?
 set -e
 if [ $exit_code -ne 0 ]; then
